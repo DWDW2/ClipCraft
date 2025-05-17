@@ -15,8 +15,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Video, Upload, Scissors } from "lucide-react";
 
 interface Timecode {
-  start: number;
-  end: number;
+  start: string;
+  end: string;
   description: string;
 }
 
@@ -27,6 +27,7 @@ export default function ProcessVideoPage() {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [timecodes, setTimecodes] = useState<Timecode[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isClipping, setIsClipping] = useState<number | null>(null);
 
   const handleFileUpload = async (
     event: React.ChangeEvent<HTMLInputElement>
@@ -36,6 +37,17 @@ export default function ProcessVideoPage() {
 
     setIsUploading(true);
     setUploadProgress(0);
+
+    // Simulate upload progress
+    const interval = setInterval(() => {
+      setUploadProgress((prev) => {
+        if (prev >= 95) {
+          clearInterval(interval);
+          return prev;
+        }
+        return prev + 5;
+      });
+    }, 200);
 
     try {
       const formData = new FormData();
@@ -61,7 +73,9 @@ export default function ProcessVideoPage() {
         variant: "destructive",
       });
     } finally {
-      setIsUploading(false);
+      clearInterval(interval);
+      setUploadProgress(100);
+      setTimeout(() => setIsUploading(false), 400);
     }
   };
 
@@ -101,10 +115,55 @@ export default function ProcessVideoPage() {
     }
   };
 
-  const formatTime = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = Math.floor(seconds % 60);
-    return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
+  const convertTimeToSeconds = (timeStr: string): number => {
+    const [minutes, seconds] = timeStr.split(":").map(Number);
+    return minutes * 60 + seconds;
+  };
+
+  const handleCreateClip = async (timecode: Timecode, index: number) => {
+    if (!videoUrl) return;
+
+    setIsClipping(index);
+    try {
+      const response = await fetch("/api/create-clip", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          videoUrl,
+          start: convertTimeToSeconds(timecode.start),
+          end: convertTimeToSeconds(timecode.end),
+          description: timecode.description,
+        }),
+      });
+
+      if (!response.ok) throw new Error("Clip creation failed");
+
+      const data = await response.json();
+
+      toast({
+        title: "Success",
+        description: "Clip created successfully",
+        action: (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => window.open(data.clipUrl, "_blank")}
+          >
+            View Clip
+          </Button>
+        ),
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create clip",
+        variant: "destructive",
+      });
+    } finally {
+      setIsClipping(null);
+    }
   };
 
   return (
@@ -190,16 +249,17 @@ export default function ProcessVideoPage() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => {
-                              toast({
-                                title: "Coming Soon",
-                                description:
-                                  "Video clipping feature will be available soon",
-                              });
-                            }}
+                            onClick={() => handleCreateClip(timecode, index)}
+                            disabled={isClipping === index}
                           >
-                            <Scissors className="h-4 w-4 mr-2" />
-                            Create Clip
+                            <Scissors
+                              className={`h-4 w-4 mr-2 ${
+                                isClipping === index ? "animate-spin" : ""
+                              }`}
+                            />
+                            {isClipping === index
+                              ? "Creating..."
+                              : "Create Clip"}
                           </Button>
                         </div>
                         <p className="text-sm text-gray-600">
