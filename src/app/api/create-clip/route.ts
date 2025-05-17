@@ -26,7 +26,6 @@ export async function POST(
     const { videoUrl, start, end, description }: ClipRequest =
       await request.json();
 
-    // Extract the filename from the URL
     const urlObj = new URL(videoUrl, "http://localhost");
     const pathname = urlObj.pathname;
     const filename = pathname.split("/").pop();
@@ -35,19 +34,17 @@ export async function POST(
       throw new Error("Invalid video URL");
     }
 
-    // Construct the source file path from the public/uploads directory
     const sourceFile = path.join(process.cwd(), "public", "uploads", filename);
 
-    // Verify the file exists
     if (!fs.existsSync(sourceFile)) {
       console.error(`Looking for file at: ${sourceFile}`);
       throw new Error(`Source file not found: ${filename}`);
     }
 
-    // Create a unique filename for the clip
-    const clipName = `clip-${Date.now()}.mp4`;
+    const clipName = `clip-${description
+      .toLocaleLowerCase()
+      .replace(/\s+/g, "-")}.mp4`;
 
-    // Ensure the clips directory exists in the public folder for serving
     const clipsDir = path.join(process.cwd(), "public", "clips");
     if (!fs.existsSync(clipsDir)) {
       fs.mkdirSync(clipsDir, { recursive: true });

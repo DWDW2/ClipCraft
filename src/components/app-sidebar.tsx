@@ -25,18 +25,13 @@ const items = [
   },
   {
     title: "Clip History",
-    url: "/dashboard/history",
+    url: "/dashboard/clips",
     icon: History,
   },
   {
     title: "Integrations",
     url: "/dashboard/integrations",
     icon: Link2,
-  },
-  {
-    title: "Settings",
-    url: "/dashboard/settings",
-    icon: Settings,
   },
 ];
 
