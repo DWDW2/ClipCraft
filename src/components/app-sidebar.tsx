@@ -1,4 +1,12 @@
-import { Home, Video, Settings, Link2, Scissors, History } from "lucide-react";
+import {
+  Home,
+  Video,
+  Settings,
+  Link2,
+  Scissors,
+  History,
+  LayoutDashboard,
+} from "lucide-react";
 
 import {
   Sidebar,
@@ -10,13 +18,15 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
 
 // Menu items
 const items = [
   {
     title: "Dashboard",
     url: "/dashboard",
-    icon: Home,
+    icon: LayoutDashboard, // More suitable icon
   },
   {
     title: "Process Video",
@@ -37,19 +47,35 @@ const items = [
 
 export function AppSidebar() {
   return (
-    <Sidebar>
-      <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel className="font-medium text-3xl mb-4">
-            ClipCraft
-          </SidebarGroupLabel>
+    <Sidebar className="w-64 border-r bg-gray-50 dark:bg-gray-900 dark:border-gray-700">
+      <SidebarContent className="flex flex-col h-full">
+        <div className="px-4 py-6">
+          <SidebarGroup>
+            <SidebarGroupLabel className="font-semibold text-2xl tracking-tight">
+              ClipCraft
+            </SidebarGroupLabel>
+          </SidebarGroup>
+          <Separator className="my-4" />
+        </div>
+
+        <SidebarGroup className="flex-1 overflow-y-auto px-2">
           <SidebarGroupContent>
             <SidebarMenu>
               {items.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <a href={item.url}>
-                      <item.icon />
+                  <SidebarMenuButton
+                    asChild
+                    className={cn(
+                      "group flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
+                      // Add active state styling (example, needs useRouter to check current path)
+                      // "active": pathname === item.url
+                    )}
+                  >
+                    <a
+                      href={item.url}
+                      className="w-full flex items-center gap-2"
+                    >
+                      <item.icon className="h-4 w-4" />
                       <span>{item.title}</span>
                     </a>
                   </SidebarMenuButton>
@@ -58,6 +84,27 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        <div className="p-4">
+          <Separator className="my-2" />
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <a
+                      href="/dashboard/settings"
+                      className="group flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
+                    >
+                      <Settings className="h-4 w-4" />
+                      <span>Settings</span>
+                    </a>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </div>
       </SidebarContent>
     </Sidebar>
   );
