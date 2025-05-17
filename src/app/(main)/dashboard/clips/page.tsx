@@ -1,4 +1,3 @@
-// app/clips/page.tsx (Server Component)
 import {
   Card,
   CardContent,
@@ -7,9 +6,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Video, Clock } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import DownloadButton from "./download-button";
+import { getSession } from "next-auth/react";
 
 interface Clip {
   name: string;
@@ -41,7 +40,8 @@ async function getClips(): Promise<Clip[]> {
 
 export default async function ClipsPage() {
   const clips = await getClips();
-
+  const session = await getSession();
+  console.log(session);
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -71,14 +71,12 @@ export default async function ClipsPage() {
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Video className="h-4 w-4 text-muted-foreground" />
-                            <h3 className="font-medium truncate">
+                          <div className="ml-2 mb-2 w-full">
+                            <h3 className="font-medium text-sm">
                               {clip.displayName}
                             </h3>
                           </div>
-                          <div className="flex items-center text-sm text-muted-foreground">
-                            <Clock className="h-4 w-4 mr-1" />
+                          <div className="flex items-center text-sm text-muted-foreground ml-2">
                             {formatDistanceToNow(clip.createdAt, {
                               addSuffix: true,
                             })}

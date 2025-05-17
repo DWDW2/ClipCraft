@@ -6,6 +6,7 @@ import {
   Scissors,
   History,
   LayoutDashboard,
+  User,
 } from "lucide-react";
 
 import {
@@ -93,11 +94,11 @@ export function AppSidebar() {
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
                     <a
-                      href="/dashboard/settings"
+                      href="/dashboard/profile"
                       className="group flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
                     >
-                      <Settings className="h-4 w-4" />
-                      <span>Settings</span>
+                      <User className="h-4 w-4" />
+                      <span>Profile</span>
                     </a>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

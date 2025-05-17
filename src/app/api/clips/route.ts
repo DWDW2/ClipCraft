@@ -27,7 +27,11 @@ export async function GET() {
           .replace("clip-", "")
           .replace(".mp4", "")
           .split("-")
-          .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+          .map((word, index) =>
+            index === 0
+              ? word.charAt(0).toUpperCase() + word.slice(1)
+              : word.toLowerCase()
+          )
           .join(" ");
 
         return {

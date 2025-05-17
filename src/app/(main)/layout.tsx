@@ -1,26 +1,23 @@
+"use client";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
-import {
-  Breadcrumb,
-  BreadcrumbList,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
 import Breadcrumbs from "./_breadcrumbs";
+import { SessionProvider } from "next-auth/react";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <SidebarProvider>
-      <AppSidebar />
-      <main className="flex-1 p-6">
-        <div className="flex items-center gap-4 mb-6">
-          <SidebarTrigger />
-          <Breadcrumbs />
-        </div>
+    <SessionProvider>
+      <SidebarProvider>
+        <AppSidebar />
+        <main className="flex-1 p-6">
+          <div className="flex items-center gap-4 mb-6">
+            <SidebarTrigger size={"icon"} />
+            <Breadcrumbs />
+          </div>
 
-        {children}
-      </main>
-    </SidebarProvider>
+          {children}
+        </main>
+      </SidebarProvider>
+    </SessionProvider>
   );
 }
