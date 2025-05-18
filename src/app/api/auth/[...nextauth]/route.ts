@@ -17,7 +17,7 @@ export const authOptions: NextAuthOptions = {
             "openid",
             "profile",
             "email",
-            "https://www.googleapis.com/auth/calendar",
+            "https://www.googleapis.com/auth/youtube",
           ].join(" "),
         },
       },

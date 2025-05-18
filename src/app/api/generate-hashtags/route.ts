@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 
 const genAI = new GoogleGenAI({
   apiKey: process.env.GOOGLE_GEMINI_API_KEY || "",
@@ -18,20 +18,19 @@ export async function POST(request: Request) {
 
     const prompt = `Generate 5-7 relevant hashtags based on this description: "${description}". 
     The hashtags should be:
-    1. Popular and trending in the tech/development niche
-    2. Relevant to the content
-    3. Include a mix of general and specific tags
+    1. Relevant to the content
+    2. at most 5 tags
     Return only the hashtags as a JSON array, without any additional text.`;
 
     const response = await genAI.models.generateContent({
-      model: "gemini-2.5-flash-preview-04-17",
+      model: "gemini-2.0-flash",
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       config: {
         responseMimeType: "application/json",
         responseSchema: {
-          type: "ARRAY",
+          type: Type.ARRAY,
           items: {
-            type: "STRING",
+            type: Type.STRING,
             description: "A hashtag for the content",
           },
         },

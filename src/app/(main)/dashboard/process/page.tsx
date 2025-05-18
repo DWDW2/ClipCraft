@@ -12,16 +12,24 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Video, Upload, Scissors, Hash } from "lucide-react";
+import { Video, Upload, Scissors, Hash, Subtitles, Edit } from "lucide-react";
 import { format } from "date-fns";
+import { Loader2 } from "lucide-react";
 
 interface Timecode {
+  id: string;
   start: string;
   end: string;
   description: string;
   clipUrl?: string;
   clipCreationFailed?: boolean;
   hashtags?: string[];
+  subtitles?: {
+    text: string;
+    mode: "ai" | "manual";
+  };
+  subtitledClipUrl?: string;
+  isGeneratingSubtitles?: boolean;
 }
 
 interface ScheduleItem {
@@ -29,6 +37,11 @@ interface ScheduleItem {
   clips: number[];
   postingTime: string;
   reason: string;
+}
+
+interface ProcessedVideo {
+  videoData: string;
+  timestamp: number;
 }
 
 export default function ProcessVideoPage() {
@@ -41,6 +54,14 @@ export default function ProcessVideoPage() {
   const [isClipping, setIsClipping] = useState<number | null>(null);
   const [schedule, setSchedule] = useState<ScheduleItem[]>([]);
   const [isGeneratingSchedule, setIsGeneratingSchedule] = useState(false);
+  const [isGeneratingSubtitles, setIsGeneratingSubtitles] = useState<
+    number | null
+  >(null);
+  const [manualSubtitleText, setManualSubtitleText] = useState<string>("");
+  const [isEmbeddingSubtitles, setIsEmbeddingSubtitles] = useState<
+    number | null
+  >(null);
+  const [processedVideos, setProcessedVideos] = useState<ProcessedVideo[]>([]);
 
   const handleFileUpload = async (
     event: React.ChangeEvent<HTMLInputElement>
@@ -113,47 +134,85 @@ export default function ProcessVideoPage() {
         }),
       });
 
-      if (!response.ok) throw new Error("Analysis failed");
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Analysis failed");
+      }
 
       const data = await response.json();
+      if (!data.timecodes || !Array.isArray(data.timecodes)) {
+        throw new Error("Invalid response format");
+      }
 
       // Generate hashtags for each timecode
       const timecodesWithHashtags = await Promise.all(
-        data.timecodes.map(async (tc: Omit<Timecode, "clipUrl">) => {
-          const hashtagResponse = await fetch("/api/generate-hashtags", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              description: tc.description,
-            }),
-          });
+        data.timecodes.map(async (tc: Omit<Timecode, "clipUrl" | "id">) => {
+          try {
+            const hashtagResponse = await fetch("/api/generate-hashtags", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                description: tc.description,
+              }),
+            });
 
-          const hashtagData = await hashtagResponse.json();
+            if (!hashtagResponse.ok) {
+              console.warn("Failed to generate hashtags for timecode:", tc);
+              return {
+                ...tc,
+                id: crypto.randomUUID(),
+                clipUrl: undefined,
+                clipCreationFailed: false,
+                hashtags: [],
+              };
+            }
 
-          return {
-            ...tc,
-            clipUrl: undefined,
-            clipCreationFailed: false,
-            hashtags: hashtagData.hashtags,
-          };
+            const hashtagData = await hashtagResponse.json();
+            return {
+              ...tc,
+              id: crypto.randomUUID(),
+              clipUrl: undefined,
+              clipCreationFailed: false,
+              hashtags: hashtagData.hashtags || [],
+            };
+          } catch (error) {
+            console.error("Error generating hashtags:", error);
+            return {
+              ...tc,
+              id: crypto.randomUUID(),
+              clipUrl: undefined,
+              clipCreationFailed: false,
+              hashtags: [],
+            };
+          }
         })
       );
 
       setTimecodes(timecodesWithHashtags);
 
       // Generate schedule after analysis
-      await handleGenerateSchedule(timecodesWithHashtags);
+      try {
+        await handleGenerateSchedule(timecodesWithHashtags);
+      } catch (error) {
+        console.error("Failed to generate schedule:", error);
+        toast({
+          title: "Warning",
+          description: "Analysis complete, but schedule generation failed",
+          variant: "destructive",
+        });
+      }
 
       toast({
         title: "Success",
-        description: "Video analysis complete with hashtags and schedule",
+        description: "Video analysis complete",
       });
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Analysis error:", error);
       toast({
         title: "Error",
-        description: "Failed to analyze video",
+        description: error.message || "Failed to analyze video",
         variant: "destructive",
       });
     } finally {
@@ -247,6 +306,141 @@ export default function ProcessVideoPage() {
       });
     } finally {
       setIsClipping(null);
+    }
+  };
+
+  const handleGenerateSubtitles = async (timecode: Timecode) => {
+    if (!videoUrl || !timecode.clipUrl) {
+      toast({
+        title: "Error",
+        description: "Please create a clip first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setTimecodes((prev) =>
+        prev.map((tc) =>
+          tc.id === timecode.id ? { ...tc, isGeneratingSubtitles: true } : tc
+        )
+      );
+
+      // Generate subtitles for the clip
+      const response = await fetch("/api/generate-subtitles", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          videoUrl: timecode.clipUrl,
+          start: timecode.start,
+          end: timecode.end,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to generate subtitles");
+      }
+
+      const data = await response.json();
+      if (!data.success) {
+        throw new Error(data.error || "Failed to generate subtitles");
+      }
+
+      // Add the processed video to the list
+      setProcessedVideos((prev) => [
+        ...prev,
+        {
+          videoData: data.videoData,
+          timestamp: Date.now(),
+        },
+      ]);
+
+      toast({
+        title: "Success",
+        description: "Subtitles added successfully",
+      });
+    } catch (error: any) {
+      console.error("Error:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add subtitles",
+        variant: "destructive",
+      });
+    } finally {
+      setTimecodes((prev) =>
+        prev.map((tc) =>
+          tc.id === timecode.id ? { ...tc, isGeneratingSubtitles: false } : tc
+        )
+      );
+    }
+  };
+
+  const handleManualSubtitles = (timecode: Timecode, index: number) => {
+    setTimecodes((prevTimecodes) =>
+      prevTimecodes.map((tc, i) =>
+        i === index
+          ? { ...tc, subtitles: { text: manualSubtitleText, mode: "manual" } }
+          : tc
+      )
+    );
+    setManualSubtitleText("");
+    toast({
+      title: "Success",
+      description: "Manual subtitles added successfully",
+    });
+  };
+
+  const handleEmbedSubtitles = async (timecode: Timecode, index: number) => {
+    if (!timecode.clipUrl || !timecode.subtitles) return;
+
+    setIsEmbeddingSubtitles(index);
+    try {
+      const response = await fetch("/api/add-subtitles", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          videoUrl: timecode.clipUrl,
+          subtitles: timecode.subtitles.text,
+          start: convertTimeToSeconds(timecode.start),
+          end: convertTimeToSeconds(timecode.end),
+        }),
+      });
+
+      if (!response.ok) throw new Error("Failed to embed subtitles");
+
+      const data = await response.json();
+
+      setTimecodes((prevTimecodes) =>
+        prevTimecodes.map((tc, i) =>
+          i === index ? { ...tc, subtitledClipUrl: data.videoData } : tc
+        )
+      );
+
+      // Clean up files after successful processing
+      await fetch("/api/cleanup-files", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          filePaths: data.filePaths,
+        }),
+      });
+
+      toast({
+        title: "Success",
+        description: "Subtitles embedded successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to embed subtitles",
+        variant: "destructive",
+      });
+    } finally {
+      setIsEmbeddingSubtitles(null);
     }
   };
 
@@ -368,6 +562,46 @@ export default function ProcessVideoPage() {
                                     : "Create Clip"}
                                 </Button>
                               )}
+                            {timecode.clipUrl && !timecode.subtitles && (
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() =>
+                                    handleGenerateSubtitles(timecode)
+                                  }
+                                  disabled={
+                                    isGeneratingSubtitles === timecode.id
+                                  }
+                                >
+                                  {isGeneratingSubtitles === timecode.id ? (
+                                    <>
+                                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                      Adding Subtitles...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Subtitles className="mr-2 h-4 w-4" />
+                                      Add Subtitles
+                                    </>
+                                  )}
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    const text = prompt("Enter subtitles:");
+                                    if (text) {
+                                      setManualSubtitleText(text);
+                                      handleManualSubtitles(timecode, index);
+                                    }
+                                  }}
+                                >
+                                  <Edit className="mr-2 h-4 w-4" />
+                                  Manual Subtitles
+                                </Button>
+                              </div>
+                            )}
                             {timecode.clipUrl && (
                               <Button
                                 variant="secondary"
@@ -399,6 +633,25 @@ export default function ProcessVideoPage() {
                         <p className="text-sm text-gray-600 mt-2">
                           {timecode.description}
                         </p>
+                        {timecode.subtitles && (
+                          <div className="mt-2 p-2 bg-gray-50 rounded-lg">
+                            <p className="text-sm">
+                              <span className="font-medium">
+                                Subtitles ({timecode.subtitles.mode}):
+                              </span>{" "}
+                              {timecode.subtitles.text}
+                            </p>
+                            {timecode.subtitledClipUrl && (
+                              <div className="mt-2">
+                                <video
+                                  src={timecode.subtitledClipUrl}
+                                  controls
+                                  className="w-full rounded-lg max-h-40 object-contain"
+                                />
+                              </div>
+                            )}
+                          </div>
+                        )}
                         {timecode.hashtags && timecode.hashtags.length > 0 && (
                           <div className="mt-2 flex flex-wrap gap-1">
                             {timecode.hashtags.map((tag, tagIndex) => (
@@ -500,6 +753,35 @@ export default function ProcessVideoPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Processed Videos Section */}
+      {processedVideos.length > 0 && (
+        <div className="mt-8">
+          <h2 className="text-2xl font-bold mb-4">Processed Videos</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {processedVideos.map((video, index) => (
+              <div
+                key={video.timestamp}
+                className="bg-card rounded-lg shadow-lg overflow-hidden"
+              >
+                <div className="aspect-video relative">
+                  <video
+                    src={video.videoData}
+                    controls
+                    className="w-full h-full object-cover"
+                    poster={videoUrl || undefined}
+                  />
+                </div>
+                <div className="p-4">
+                  <p className="text-sm text-muted-foreground">
+                    Processed {new Date(video.timestamp).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -64,7 +64,7 @@ export default function Home() {
       </section>
 
       {/* App Preview */}
-      <section className="container mx-auto px-6 py-16 relative">
+      {/* <section className="container mx-auto px-6 py-16 relative">
         <div className="bg-white rounded-2xl p-4 shadow-xl max-w-5xl mx-auto">
           <div className="relative h-[400px] md:h-[500px] w-full rounded-xl overflow-hidden">
             <Image
@@ -100,7 +100,7 @@ export default function Home() {
             </div>
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* Features */}
       <section

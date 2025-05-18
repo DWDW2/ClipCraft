@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 
 const genAI = new GoogleGenAI({
   apiKey: process.env.GOOGLE_GEMINI_API_KEY || "",
@@ -36,38 +36,41 @@ export async function POST(request: Request) {
     - date: "YYYY-MM-DD"
     - clips: array of clip indices to post on that date
     - postingTime: "HH:MM" in 24-hour format
-    - reason: brief explanation for the scheduling choice`;
+    - reason: brief explanation for the scheduling choice
+    today is ${new Date().toDateString()}
+    `;
 
     const response = await genAI.models.generateContent({
-      model: "gemini-2.5-flash-preview-04-17",
+      model: "gemini-2.0-flash",
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       config: {
         responseMimeType: "application/json",
         responseSchema: {
-          type: "ARRAY",
+          type: Type.ARRAY,
           items: {
-            type: "OBJECT",
+            type: Type.OBJECT,
             properties: {
               date: {
-                type: "STRING",
+                type: Type.STRING,
                 description: "Date in YYYY-MM-DD format",
               },
               clips: {
-                type: "ARRAY",
+                type: Type.ARRAY,
                 items: {
-                  type: "NUMBER",
+                  type: Type.NUMBER,
                   description: "Index of the clip to post",
                 },
               },
               postingTime: {
-                type: "STRING",
+                type: Type.STRING,
                 description: "Posting time in HH:MM 24-hour format",
               },
               reason: {
-                type: "STRING",
+                type: Type.STRING,
                 description: "Explanation for the scheduling choice",
               },
             },
+            required: ["date", "clips", "postingTime", "reason"],
           },
         },
       },
